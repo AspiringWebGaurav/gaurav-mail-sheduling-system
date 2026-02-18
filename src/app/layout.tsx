@@ -6,6 +6,7 @@ import { ThemeProvider } from '@/providers/ThemeProvider';
 import { ToastWrapper } from '@/components/ui/ToastWrapper';
 import { DevModePoller } from '@/components/layout/DevModePoller';
 import { SystemControlProvider } from '@/providers/SystemControlProvider';
+import { InstallProvider } from '@/providers/InstallProvider';
 import { GlobalHaltBanner } from '@/components/ui/GlobalHaltBanner';
 
 const inter = Inter({
@@ -133,10 +134,12 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                 <SystemControlProvider>
                     <ThemeProvider>
                         <AuthProvider>
-                            <GlobalHaltBanner />
-                            {children}
-                            <ToastWrapper />
-                            {process.env.NODE_ENV === 'development' && <DevModePoller />}
+                            <InstallProvider>
+                                <GlobalHaltBanner />
+                                {children}
+                                <ToastWrapper />
+                                {process.env.NODE_ENV === 'development' && <DevModePoller />}
+                            </InstallProvider>
                         </AuthProvider>
                     </ThemeProvider>
                 </SystemControlProvider>

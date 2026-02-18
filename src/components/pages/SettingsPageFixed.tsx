@@ -12,10 +12,71 @@ import { useTheme } from '@/providers/ThemeProvider';
 import { subscribeSystemHealth, subscribeDisasterStats } from '@/services/disasterBankService';
 import { subscribeProviders } from '@/services/providerService';
 import { retryScheduledReminder, deleteScheduledReminder, toggleEmergencyStop } from '@/services/participantServiceFixed';
+import { useInstall } from '@/providers/InstallProvider';
 import type { SystemHealthStatus, EmailProvider } from '@/types';
 import styles from './SettingsPage.module.css';
 import { ConfirmModal } from '@/components/ui/ConfirmModal';
-import { AlertOctagon } from 'lucide-react';
+import { AlertOctagon, Download } from 'lucide-react';
+
+function InstallRow() {
+    const { isInstallable, install } = useInstall();
+
+    // Animate presence could be used here, but simple null check is fine for now
+    if (!isInstallable) return null;
+
+    return (
+        <motion.div
+            className={`card ${styles.profileCard}`} // Reuse profile card style for consistency
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            style={{
+                marginBottom: '1rem',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                padding: '1rem',
+                borderLeft: '4px solid #8b5cf6', // Purple accent
+                cursor: 'pointer'
+            }}
+            onClick={install}
+            whileHover={{ scale: 1.01 }}
+            whileTap={{ scale: 0.99 }}
+        >
+            <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                <div style={{
+                    background: 'var(--accent-gradient)',
+                    padding: '0.6rem',
+                    borderRadius: '8px',
+                    color: 'white',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center'
+                }}>
+                    <Download size={20} />
+                </div>
+                <div>
+                    <h3 style={{ margin: 0, fontSize: '1rem', fontWeight: 600, color: 'var(--text-primary)' }}>
+                        Install App
+                    </h3>
+                    <p style={{ margin: 0, fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
+                        Add to home screen for quick access
+                    </p>
+                </div>
+            </div>
+
+            <div style={{
+                background: 'rgba(139, 92, 246, 0.1)',
+                color: '#8b5cf6',
+                padding: '0.4rem 0.8rem',
+                borderRadius: '6px',
+                fontSize: '0.85rem',
+                fontWeight: 600
+            }}>
+                Install
+            </div>
+        </motion.div>
+    );
+}
 
 // --- Audit Log Viewer Component ---
 type FirestoreTimestamp = { toDate: () => Date };
@@ -619,6 +680,9 @@ export default function SettingsPage() {
                     })}
                 </div>
             </motion.div>
+
+            {/* ── INSTALL APP ROW ── */}
+            <InstallRow />
 
             {/* ── EMERGENCY STOP CONTROL ── */}
             <motion.div
