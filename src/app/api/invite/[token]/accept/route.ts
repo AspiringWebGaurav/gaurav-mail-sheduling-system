@@ -136,12 +136,37 @@ export async function POST(
                 console.warn(`[InviteAccept] Event ${data.eventId} not found for invite ${doc.id}`);
             }
 
+            // ── Fetch Original Branding (Template & Theme) ──
+            // Try to find an existing reminder for this event (e.g. the owner's) to inherit style
+            let inheritedTemplate = 'sys_template_prof_reminder';
+            let inheritedTheme = 'sys_theme_modern_blue';
+            try {
+                const reminderQuery = adminDb.collection('scheduledReminders')
+                    .where('eventId', '==', data.eventId)
+                    .orderBy('createdAt', 'asc') // Scalable O(1) query - Requires Index
+                    .limit(1);
+                const reminderSnap = await reminderQuery.get();
+
+                if (!reminderSnap.empty) {
+                    const rData = reminderSnap.docs[0].data();
+                    if (rData.templateId) inheritedTemplate = rData.templateId;
+                    if (rData.themeId) inheritedTheme = rData.themeId;
+                }
+            } catch (err) {
+                console.warn('[InviteAccept] Failed to fetch inheritance branding:', err);
+            }
+
             // Accept the invite
             t.update(docRef, {
                 status: 'accepted',
                 acceptedAt: FieldValue.serverTimestamp(),
                 updatedAt: FieldValue.serverTimestamp(),
                 version: (data.version || 1) + 1,
+            });
+
+            // Increment participant count for UI (Collab Icon)
+            t.update(eventRef, {
+                participantCount: FieldValue.increment(1)
             });
 
             // Add invitee to event participants
@@ -163,8 +188,8 @@ export async function POST(
                 reminderEnabled: true, // AUTO-ENABLE REMINDER
                 reminderOffset,
                 reminderBase,
-                templateId: '',
-                themeId: '',
+                templateId: inheritedTemplate, // Inherit from owner
+                themeId: inheritedTheme,       // Inherit from owner
                 addedAt: FieldValue.serverTimestamp(),
                 addedVia: 'invite_link',
                 inviteId: doc.id,
@@ -199,6 +224,8 @@ export async function POST(
                         processedAt: null,
                         senderName: data.inviterName || 'GMSS User',
                         senderEmail: data.inviterEmail || '',
+                        templateId: inheritedTemplate, // Inherit from owner
+                        themeId: inheritedTheme,       // Inherit from owner
                     });
                 }
             }
