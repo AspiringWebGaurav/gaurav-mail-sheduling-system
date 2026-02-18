@@ -11,6 +11,7 @@
   },
   "dependencies": {
     "@emailjs/browser": "^4.4.1",
+    "@opentelemetry/api": "^1.9.0",
     "date-fns": "^4.1.0",
     "firebase": "^11.3.0",
     "framer-motion": "^12.4.0",
@@ -26,8 +27,8 @@
     "@types/node": "^22.13.0",
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
-    "eslint": "^4.1.1",
-    "eslint-config-next": "^0.2.4",
+    "eslint": "^10.0.0",
+    "eslint-config-next": "^16.1.6",
     "firebase-admin": "^13.6.1",
     "puppeteer": "^24.37.3",
     "typescript": "^5.7.0"
