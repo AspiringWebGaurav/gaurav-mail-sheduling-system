@@ -394,13 +394,28 @@ h6 {
   color: var(--text-primary);
 }
 
+/* Ensure the text remains visible */
+.input-field[type="date"],
+.input-field[type="time"],
+.input-field[type="datetime-local"] {
+  position: relative;
+  min-height: 48px;
+  /* Larger touch target */
+}
+
+/* Fallback for clicks if the overlay trick causes issues, keep standard icon visible/styled */
 .input-field[type="date"]::-webkit-calendar-picker-indicator,
 .input-field[type="time"]::-webkit-calendar-picker-indicator,
 .input-field[type="datetime-local"]::-webkit-calendar-picker-indicator {
-  filter: invert(0.7);
+  background: transparent;
+  color: transparent;
   cursor: pointer;
-  opacity: 0.8;
-  padding: 4px;
+  height: 100%;
+  width: 100%;
+  position: absolute;
+  top: 0;
+  left: 0;
+  opacity: 0;
 }
 
 .input-field[type="date"]::-webkit-calendar-picker-indicator:hover,

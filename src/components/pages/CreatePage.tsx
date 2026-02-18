@@ -442,15 +442,15 @@ export default function CreatePage() {
                                     <div className={styles.field}>
                                         <label className="label"><Clock size={14} /> Start</label>
                                         <div className={styles.inputGroup}>
-                                            <input className="input-field" type="date" value={startDate} onChange={e => { setStartDate(e.target.value); if (!endDate) setEndDate(e.target.value); }} required />
-                                            <input className="input-field" type="time" value={startTime} onChange={e => setStartTime(e.target.value)} required />
+                                            <input className="input-field" type="date" value={startDate} onChange={e => { setStartDate(e.target.value); if (!endDate) setEndDate(e.target.value); }} onClick={(e) => e.currentTarget.showPicker()} required />
+                                            <input className="input-field" type="time" value={startTime} onChange={e => setStartTime(e.target.value)} onClick={(e) => e.currentTarget.showPicker()} required />
                                         </div>
                                     </div>
                                     <div className={styles.field}>
                                         <label className="label">End</label>
                                         <div className={styles.inputGroup}>
-                                            <input className="input-field" type="date" value={endDate} onChange={e => setEndDate(e.target.value)} required />
-                                            <input className="input-field" type="time" value={endTime} onChange={e => setEndTime(e.target.value)} required />
+                                            <input className="input-field" type="date" value={endDate} onChange={e => setEndDate(e.target.value)} onClick={(e) => e.currentTarget.showPicker()} required />
+                                            <input className="input-field" type="time" value={endTime} onChange={e => setEndTime(e.target.value)} onClick={(e) => e.currentTarget.showPicker()} required />
                                         </div>
                                     </div>
                                 </div>
@@ -576,8 +576,8 @@ export default function CreatePage() {
                                 </select>
                             ) : (
                                 <div className={styles.inputGroup}>
-                                    <input className="input-field" type="date" value={exactDate} onChange={e => setExactDate(e.target.value)} />
-                                    <input className="input-field" type="time" value={exactTime} onChange={e => setExactTime(e.target.value)} />
+                                    <input className="input-field" type="date" value={exactDate} onChange={e => setExactDate(e.target.value)} onClick={(e) => e.currentTarget.showPicker()} />
+                                    <input className="input-field" type="time" value={exactTime} onChange={e => setExactTime(e.target.value)} onClick={(e) => e.currentTarget.showPicker()} />
                                 </div>
                             )}
 
