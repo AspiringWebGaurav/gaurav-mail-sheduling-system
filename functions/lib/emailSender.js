@@ -3,10 +3,29 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
+exports.getSimulationCount = getSimulationCount;
+exports.resetSimulationCount = resetSimulationCount;
 exports.sendEmail = sendEmail;
 const https_1 = __importDefault(require("https"));
+// ═══ SIMULATION MODE ═══
+// When enabled, intercepts all email sends and returns simulated success.
+// Toggle: set GMSS_SIMULATION_MODE=true in functions/.env
+let simulationCount = 0;
+function getSimulationCount() { return simulationCount; }
+function resetSimulationCount() { simulationCount = 0; }
 const SEND_TIMEOUT_MS = 15000; // 15s timeout for EmailJS API call
 async function sendEmail(provider, params) {
+    // ── Request ID for cross-log tracing ──
+    const requestId = `req_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
+    // ═══ SIMULATION MODE GATE ═══
+    if (process.env.GMSS_SIMULATION_MODE === "true") {
+        simulationCount++;
+        console.log(`📧 [SIMULATION] Email #${simulationCount} [${requestId}] | To: ${params.to_email} | ` +
+            `Subject: ${params.subject || "N/A"} | Provider: ${provider.serviceId}`);
+        // Simulate network latency
+        await new Promise((r) => setTimeout(r, 200));
+        return; // Success without real API call
+    }
     // Validate required params
     if (!params.to_email) {
         throw new Error("Missing recipient email (to_email)");
@@ -51,22 +70,61 @@ async function sendEmail(provider, params) {
                 "Content-Length": Buffer.byteLength(payload),
             },
         };
+        // ── LOG REQUEST (REDACTED) ──
+        console.log(JSON.stringify({
+            level: 'INFO',
+            event: 'EMAIL_SEND_INIT',
+            requestId,
+            serviceId: provider.serviceId,
+            templateId: provider.templateId,
+            recipient: params.to_email,
+            subject: emailSubject
+        }));
         const req = https_1.default.request(options, (res) => {
             let data = "";
             res.on("data", (chunk) => (data += chunk));
             res.on("end", () => {
                 clearTimeout(timeout);
                 if (res.statusCode === 200) {
+                    // Response validation — EmailJS returns 'OK' on success
+                    if (data && data.trim() !== 'OK') {
+                        console.warn(JSON.stringify({
+                            level: 'WARN',
+                            event: 'EMAILJS_UNEXPECTED_BODY',
+                            requestId,
+                            body: data.slice(0, 200)
+                        }));
+                    }
+                    console.log(JSON.stringify({
+                        level: 'INFO',
+                        event: 'EMAILJS_SUCCESS',
+                        requestId,
+                        statusCode: res.statusCode,
+                        body: data.trim()
+                    }));
                     resolve();
                 }
                 else {
-                    reject(new Error(`EmailJS API error ${res.statusCode}: ${data}`));
+                    console.error(JSON.stringify({
+                        level: 'ERROR',
+                        event: 'EMAILJS_FAILURE',
+                        requestId,
+                        statusCode: res.statusCode,
+                        body: data
+                    }));
+                    reject(new Error(`[${requestId}] EmailJS API error ${res.statusCode}: ${data}`));
                 }
             });
         });
         req.on("error", (err) => {
             clearTimeout(timeout);
-            reject(new Error(`EmailJS request failed: ${err.message}`));
+            console.error(JSON.stringify({
+                level: 'ERROR',
+                event: 'EMAILJS_NET_ERROR',
+                requestId,
+                error: err.message
+            }));
+            reject(new Error(`[${requestId}] EmailJS request failed: ${err.message}`));
         });
         req.write(payload);
         req.end();

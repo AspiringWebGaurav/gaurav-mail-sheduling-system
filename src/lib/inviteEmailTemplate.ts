@@ -1,9 +1,8 @@
 /**
- * Professional HTML email template for GMSS event invitations.
- * Matches the existing GMSS email aesthetic (gradient header, card layout).
+ * Enterprise Minimal HTML Email Template for GMSS.
+ * Focus: Clarity, Authority, Structure.
  */
 
-import { renderBrandingFooter } from './emailSystem/brandingFooter';
 import { EmailThemeColors } from './emailTemplateRenderer';
 
 export interface InviteEmailParams {
@@ -13,23 +12,10 @@ export interface InviteEmailParams {
     eventLocation?: string;
     inviteLink: string;
     role: string;
-    // Dynamic Content Overrides
-    headerText?: string; // Default: "EVENT INVITATION"
-    bodyText?: string;   // Default: "{inviterName} has invited you to join an event as {role}."
-    whenLabel?: string;  // Default: "WHEN"
-    whereLabel?: string; // Default: "WHERE"
-    buttonText?: string; // Default: "Accept Invitation"
-    expiryText?: string; // Default: "This invitation expires in 7 days..."
+    headerText?: string;
+    buttonText?: string;
+    expiryText?: string;
 }
-
-// Theme used for the Invite Email (Dark Mode Aesthetic)
-const INVITE_THEME: EmailThemeColors = {
-    primaryColor: '#6c5ce7',
-    secondaryColor: '#a855f7',
-    backgroundColor: '#1a1a2e', // Card background
-    textColor: '#ffffff',       // Text color for footer
-    borderRadius: 16
-};
 
 export function renderInviteEmail(params: InviteEmailParams): string {
     const {
@@ -39,102 +25,197 @@ export function renderInviteEmail(params: InviteEmailParams): string {
         eventLocation,
         inviteLink,
         role,
-        headerText = "EVENT INVITATION",
-        // We handle bodyText construction dynamically below if not provided
-        whenLabel = "WHEN",
-        whereLabel = "WHERE",
+        headerText = "Event Invitation",
         buttonText = "Accept Invitation",
-        expiryText = "This invitation expires in 7 days. If the button doesn't work, copy and paste this link:"
+        expiryText = "This link is valid for 10 hours"
     } = params;
 
-    // Construct default body text if not provided, allowing for partial dynamic injection
-    // Note: A true dynamic system might pass the full string with placeholders, but for now we keep the structure.
+    // Ensure production links
+    let baseUrl = 'https://gmss.app';
+    try {
+        baseUrl = new URL(inviteLink).origin;
+    } catch (e) {
+        // Fallback for relative or invalid URLs
+        if (inviteLink.includes('localhost')) {
+            baseUrl = 'http://localhost:3000';
+        }
+    }
 
-    // Generate Branding Footer
-    const footerHtml = renderBrandingFooter(INVITE_THEME);
+    // Colors
+    const c = {
+        bg: '#000000',           // Pure Black Body
+        contentBg: '#09090b',
+        text: '#ffffff',
+        muted: '#a1a1aa',
+        highlight: '#c084fc',    // Bright Purple for dynamic data
+        accentGradient: 'linear-gradient(90deg, #6c5ce7 0%, #ff0080 100%)',
+        border: '#1f1f22',
+        footerBg: '#0e0e11'
+    };
 
     return `<!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Event Invitation</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>${escapeHtml(headerText)}</title>
+    <style>
+        /* Desktop defaults */
+        body { margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; color: ${c.text}; background-color: ${c.bg}; }
+        
+        /* Mobile overrides */
+        @media only screen and (max-width: 600px) {
+            .container { width: 100% !important; max-width: 100% !important; }
+            .content-padding { padding-left: 20px !important; padding-right: 20px !important; }
+            .mobile-font-lg { font-size: 28px !important; line-height: 1.2 !important; }
+            .mobile-font-md { font-size: 16px !important; line-height: 1.6 !important; }
+            .mobile-block { display: block !important; width: 100% !important; }
+            .mobile-hide { display: none !important; }
+            .spacer-sm { height: 24px !important; }
+        }
+    </style>
 </head>
-<body style="margin:0;padding:0;background-color:#0a0a0f;font-family:'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif;">
-<table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="background-color:#0a0a0f;">
-<tr><td align="center" style="padding:40px 16px;">
-
-<table role="presentation" cellpadding="0" cellspacing="0" width="560" style="max-width:560px;width:100%;border-radius:16px;overflow:hidden;box-shadow:0 8px 32px rgba(108,92,231,0.15);">
-
-<!-- Header Gradient -->
-<tr>
-<td style="background:linear-gradient(135deg,#6c5ce7,#a855f7,#6366f1);padding:32px 32px 24px;text-align:center;">
-    <div style="font-size:12px;font-weight:600;letter-spacing:2px;text-transform:uppercase;color:rgba(255,255,255,0.8);margin-bottom:8px;">${escapeHtml(headerText)}</div>
-    <h1 style="margin:0;font-size:24px;font-weight:700;color:#ffffff;line-height:1.3;">${escapeHtml(eventTitle)}</h1>
-</td>
-</tr>
-
-<!-- Body -->
-<tr>
-<td style="background-color:#12121a;padding:32px;">
-
-    <p style="margin:0 0 24px;font-size:16px;color:#c8c8d0;line-height:1.6;">
-        <strong style="color:#ffffff;">${escapeHtml(inviterName)}</strong> has invited you to join an event as <strong style="color:#a855f7;">${escapeHtml(role)}</strong>.
-    </p>
-
-    <!-- Event Details Card -->
-    <table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="background-color:#1a1a2e;border-radius:12px;border-left:4px solid #6c5ce7;margin-bottom:28px;">
-    <tr><td style="padding:20px 24px;">
-        <table role="presentation" cellpadding="0" cellspacing="0" width="100%">
+<body style="margin: 0; padding: 0; background-color: ${c.bg};">
+    
+    <!-- Outlook Wrapper -->
+    <table role="presentation" width="100%" border="0" cellspacing="0" cellpadding="0" style="background-color: ${c.bg}; width: 100%;">
         <tr>
-            <td style="padding-bottom:12px;">
-                <div style="font-size:11px;font-weight:600;letter-spacing:1px;text-transform:uppercase;color:#8888a0;margin-bottom:4px;">${escapeHtml(whenLabel)}</div>
-                <div style="font-size:15px;color:#ffffff;">${escapeHtml(eventTime)}</div>
+            <td align="center">
+                
+                <!-- Main Content (Centered) -->
+                <table class="container" role="presentation" width="100%" border="0" cellspacing="0" cellpadding="0" style="max-width: 600px; width: 100%; margin: 0 auto;">
+                    
+                    <!-- SPACER -->
+                    <tr><td height="24" class="spacer-sm"></td></tr>
+
+                    <!-- LOGO HEADER -->
+                    <tr>
+                        <td align="left" class="content-padding" style="padding: 0 24px 20px 24px;">
+                            <div style="font-size: 20px; font-weight: 800; color: ${c.text}; letter-spacing: -1px; display: inline-block;">
+                                GMSS<span style="color: #6c5ce7;">.</span>
+                            </div>
+                        </td>
+                    </tr>
+
+                    <!-- HERO SECTION -->
+                    <tr>
+                        <td align="left" class="content-padding" style="padding: 0 24px;">
+                            <h1 class="mobile-font-lg" style="margin: 0 0 12px 0; font-size: 28px; font-weight: 700; letter-spacing: -0.02em; line-height: 1.2; color: ${c.text};">
+                                ${escapeHtml(eventTitle)}
+                            </h1>
+                            <p class="mobile-font-md" style="margin: 0 0 24px 0; font-size: 16px; line-height: 1.6; color: ${c.muted};">
+                                <strong style="color: ${c.highlight};">${escapeHtml(inviterName)}</strong> has invited you to collaborate.
+                            </p>
+                        </td>
+                    </tr>
+
+                    <!-- DETAILS GRID (Clean Vertical) -->
+                    <tr>
+                        <td align="left" class="content-padding" style="padding: 0 24px 24px 24px;">
+                            <table role="presentation" width="100%" border="0" cellspacing="0" cellpadding="0">
+                                <tr>
+                                    <td style="padding-bottom: 20px; border-left: 2px solid ${c.border}; padding-left: 16px;">
+                                        <div style="font-size: 11px; font-weight: 700; text-transform: uppercase; color: ${c.muted}; margin-bottom: 4px; letter-spacing: 0.5px;">Time</div>
+                                        <div style="font-size: 15px; font-weight: 600; color: ${c.highlight};">${escapeHtml(eventTime)}</div>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td style="padding-bottom: 20px; border-left: 2px solid ${c.border}; padding-left: 16px;">
+                                        <div style="font-size: 11px; font-weight: 700; text-transform: uppercase; color: ${c.muted}; margin-bottom: 4px; letter-spacing: 0.5px;">Role</div>
+                                        <div style="font-size: 15px; font-weight: 600; color: ${c.highlight}; text-transform: capitalize;">${escapeHtml(role)}</div>
+                                    </td>
+                                </tr>
+                                ${eventLocation ? `
+                                <tr>
+                                    <td style="border-left: 2px solid ${c.border}; padding-left: 16px;">
+                                        <div style="font-size: 11px; font-weight: 700; text-transform: uppercase; color: ${c.muted}; margin-bottom: 4px; letter-spacing: 0.5px;">Location</div>
+                                        <div style="font-size: 15px; font-weight: 600; color: ${c.highlight};">${escapeHtml(eventLocation)}</div>
+                                    </td>
+                                </tr>` : ''}
+                            </table>
+                        </td>
+                    </tr>
+
+                    <!-- ACTION BUTTON -->
+                    <tr>
+                        <td align="left" class="content-padding" style="padding: 0 24px 32px 24px;">
+                            <a href="${escapeHtml(inviteLink)}" target="_blank" class="mobile-block" style="background: ${c.accentGradient}; color: #ffffff; font-size: 15px; font-weight: 700; text-decoration: none; padding: 14px 32px; border-radius: 99px; display: inline-block; box-shadow: 0 10px 20px -10px rgba(108, 92, 231, 0.5); text-align: center;">
+                                ${escapeHtml(buttonText)} &rarr;
+                            </a>
+                            <div style="margin-top: 12px; font-size: 12px; color: #52525b;">
+                                ${escapeHtml(expiryText)}
+                            </div>
+                        </td>
+                    </tr>
+
+                </table>
+
+                <!-- COMPACT FOOTER -->
+                <table role="presentation" width="100%" border="0" cellspacing="0" cellpadding="0" style="background-color: ${c.footerBg}; border-top: 1px solid ${c.border};">
+                    <tr>
+                        <td align="center" class="content-padding" style="padding: 24px 24px;">
+                            
+                            <!-- GRADIENT BRAND + Personal Branding -->
+                            <div style="margin-bottom: 16px;">
+                                <span style="font-size: 18px; font-weight: 900; letter-spacing: -0.5px; background: ${c.accentGradient}; -webkit-background-clip: text; -webkit-text-fill-color: transparent; color: #6c5ce7; margin-right: 12px;">
+                                    GMSS PRO
+                                </span>
+                                <span class="mobile-block" style="font-size: 13px; color: ${c.muted}; font-weight: 500;">
+                                    Made by Gaurav for Gaurav.
+                                </span>
+                            </div>
+
+                            <!-- Links & Copyright -->
+                            <div style="font-size: 12px; color: #52525b;">
+                                <a href="${baseUrl}/terms" target="_blank" style="color: ${c.muted}; text-decoration: none; margin: 0 8px;">Terms</a>
+                                <span style="color: ${c.border};">&bull;</span>
+                                <a href="${baseUrl}/privacy" target="_blank" style="color: ${c.muted}; text-decoration: none; margin: 0 8px;">Privacy</a>
+                                <span style="color: ${c.border};">&bull;</span>
+                                <a href="${baseUrl}/license" target="_blank" style="color: ${c.muted}; text-decoration: none; margin: 0 8px;">License</a>
+                                <span class="mobile-hide" style="color: ${c.border};">&bull;</span>
+                                <span class="mobile-block" style="color: #52525b; margin-left: 8px;">&copy; ${new Date().getFullYear()} GMSS</span>
+                            </div>
+                        </td>
+                    </tr>
+                </table>
+
             </td>
         </tr>
-        ${eventLocation ? `<tr>
-            <td>
-                <div style="font-size:11px;font-weight:600;letter-spacing:1px;text-transform:uppercase;color:#8888a0;margin-bottom:4px;">${escapeHtml(whereLabel)}</div>
-                <div style="font-size:15px;color:#ffffff;">${escapeHtml(eventLocation)}</div>
-            </td>
-        </tr>` : ''}
-        </table>
-    </td></tr>
     </table>
-
-    <!-- CTA Button -->
-    <table role="presentation" cellpadding="0" cellspacing="0" width="100%">
-    <tr><td align="center">
-        <a href="${escapeHtml(inviteLink)}" target="_blank" style="display:inline-block;background:linear-gradient(135deg,#6c5ce7,#a855f7);color:#ffffff;font-size:16px;font-weight:600;text-decoration:none;padding:14px 40px;border-radius:12px;letter-spacing:0.5px;box-shadow:0 4px 16px rgba(108,92,231,0.3);">
-            ${escapeHtml(buttonText)}
-        </a>
-    </td></tr>
-    </table>
-
-    <p style="margin:24px 0 0;font-size:13px;color:#6b6b80;line-height:1.6;text-align:center;">
-        ${escapeHtml(expiryText)}<br>
-        <a href="${escapeHtml(inviteLink)}" style="color:#a855f7;word-break:break-all;">${escapeHtml(inviteLink)}</a>
-    </p>
-
-</td>
-</tr>
-
-<!-- Footer -->
-<tr>
-<td style="background-color:#0d0d15; border-top:1px solid #1e1e30;">
-    ${footerHtml}
-</td>
-</tr>
-
-</table>
-
-</td></tr>
-</table>
 </body>
 </html>`;
 }
 
-function escapeHtml(str: string): string {
+export function renderInviteEmailText(params: InviteEmailParams): string {
+    const {
+        inviterName,
+        eventTitle,
+        eventTime,
+        inviteLink,
+        role
+    } = params;
+
+    return `EVENT INVITATION
+
+${eventTitle}
+
+${inviterName} has invited you to join this session.
+
+DETAILS
+Date & Time: ${eventTime}
+Role: ${role}
+
+ACCEPT INVITATION
+${inviteLink}
+
+(Link expires in 10 hours)
+
+--------------------------------------------------
+GMSS | Terms | Privacy | License
+`;
+}
+
+export function escapeHtml(str: string): string {
     return str
         .replace(/&/g, '&amp;')
         .replace(/</g, '&lt;')

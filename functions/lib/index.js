@@ -36,14 +36,16 @@ var __exportStar = (this && this.__exportStar) || function(m, exports) {
     for (var p in m) if (p !== "default" && !Object.prototype.hasOwnProperty.call(exports, p)) __createBinding(exports, m, p);
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.reminderScheduler = void 0;
+exports.systemHealthCheck = exports.disasterBankProcessor = exports.reminderScheduler = void 0;
 const admin = __importStar(require("firebase-admin"));
 const scheduler_1 = require("firebase-functions/v2/scheduler");
 const scheduler_2 = require("./scheduler");
+const disasterBank_1 = require("./disasterBank");
 admin.initializeApp();
-// Two scheduled functions offset by 30 seconds to achieve ~30-second processing
-// Cloud Scheduler minimum is 1 minute, so we use two functions
-// Single scheduler running every minute is sufficient and cost-effective
+// ═══════════════════════════════════════════════════════════════
+// LAYER 1: Normal Scheduler — Every minute
+// Processes pending reminders with retry, provider rotation, quota checks.
+// ═══════════════════════════════════════════════════════════════
 exports.reminderScheduler = (0, scheduler_1.onSchedule)({
     schedule: "* * * * *", // Every minute
     timeZone: "UTC",
@@ -53,6 +55,45 @@ exports.reminderScheduler = (0, scheduler_1.onSchedule)({
     region: "asia-south1",
 }, async () => {
     await (0, scheduler_2.processReminders)();
+});
+// ═══════════════════════════════════════════════════════════════
+// LAYER 2: Disaster Bank Processor — Every 5 minutes
+// Attempts recovery of captured failed jobs with exponential backoff.
+// ═══════════════════════════════════════════════════════════════
+exports.disasterBankProcessor = (0, scheduler_1.onSchedule)({
+    schedule: "*/5 * * * *", // Every 5 minutes
+    timeZone: "UTC",
+    retryCount: 0,
+    memory: "256MiB",
+    timeoutSeconds: 120,
+    region: "asia-south1",
+}, async () => {
+    try {
+        await (0, disasterBank_1.processDisasterBank)();
+    }
+    catch (err) {
+        console.error("🚨 DISASTER BANK PROCESSOR CRASHED:", err);
+    }
+});
+// ═══════════════════════════════════════════════════════════════
+// LAYER 3: System Health Check — Every 15 minutes
+// Validates system integrity and auto-repairs corrupted state.
+// ═══════════════════════════════════════════════════════════════
+exports.systemHealthCheck = (0, scheduler_1.onSchedule)({
+    schedule: "*/15 * * * *", // Every 15 minutes
+    timeZone: "UTC",
+    retryCount: 0,
+    memory: "256MiB",
+    timeoutSeconds: 60,
+    region: "asia-south1",
+}, async () => {
+    try {
+        await (0, disasterBank_1.runHealthCheck)();
+        await (0, disasterBank_1.repairState)();
+    }
+    catch (err) {
+        console.error("🚨 HEALTH CHECK CRASHED:", err);
+    }
 });
 __exportStar(require("./triggers"), exports);
 //# sourceMappingURL=index.js.map

@@ -39,10 +39,14 @@ const providerBalancer_1 = require("./providerBalancer");
 const emailSender_1 = require("./emailSender");
 const emailTemplateRenderer_1 = require("./emailTemplateRenderer");
 const emailSystem_1 = require("./lib/emailSystem");
+const disasterBank_1 = require("./disasterBank");
+const auditService_1 = require("./auditService");
 const MAX_LATE_MINUTES = 10;
 const MAX_ATTEMPTS = 3;
 const THROTTLE_MS = 1000; // Anti-abuse throttle between sends
 const BATCH_LIMIT = 50; // Max reminders per invocation
+// Unique invocation ID for claim ownership tracking
+const INVOCATION_ID = `inv_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
 async function processReminders() {
     const db = admin.firestore();
     const now = admin.firestore.Timestamp.now();
@@ -55,7 +59,12 @@ async function processReminders() {
     const snap = await query.get();
     if (snap.empty)
         return;
-    console.log(`Scheduler: Processing ${snap.size} due reminders`);
+    console.log(JSON.stringify({
+        level: 'INFO',
+        event: 'SCHEDULER_START',
+        count: snap.size,
+        message: `Scheduler: Processing ${snap.size} due reminders`
+    }));
     for (const doc of snap.docs) {
         const reminder = doc.data();
         // ═══ IDEMPOTENCY: Skip already-processed (prevents double-send on concurrent invocations) ═══
@@ -73,12 +82,18 @@ async function processReminders() {
                 txn.update(doc.ref, {
                     status: "processing",
                     claimedAt: admin.firestore.FieldValue.serverTimestamp(),
+                    claimedBy: INVOCATION_ID,
                 });
                 return true;
             });
         }
         catch (txnErr) {
-            console.warn(`Reminder ${doc.id}: Transaction claim failed (likely concurrent):`, txnErr);
+            console.warn(JSON.stringify({
+                level: 'WARN',
+                event: 'CLAIM_FAILED',
+                reminderId: doc.id,
+                error: txnErr instanceof Error ? txnErr.message : String(txnErr)
+            }));
             continue; // Skip — another invocation is handling it
         }
         if (!claimed) {
@@ -93,7 +108,13 @@ async function processReminders() {
                 failureReason: `Expired: ${Math.round(minutesLate)} minutes late (limit: ${MAX_LATE_MINUTES})`,
                 processedAt: admin.firestore.FieldValue.serverTimestamp(),
             });
-            console.log(`Reminder ${doc.id} expired (${Math.round(minutesLate)} min late)`);
+            console.log(JSON.stringify({
+                level: 'INFO',
+                event: 'REMINDER_EXPIRED',
+                reminderId: doc.id,
+                minutesLate: Math.round(minutesLate),
+                message: `Reminder ${doc.id} expired (${Math.round(minutesLate)} min late)`
+            }));
             continue;
         }
         // ═══ RETRY LIMIT CHECK ═══
@@ -103,6 +124,13 @@ async function processReminders() {
                 failureReason: `Max attempts (${MAX_ATTEMPTS}) exceeded`,
                 processedAt: admin.firestore.FieldValue.serverTimestamp(),
             });
+            // ═══ DISASTER BANK: Capture max-attempts failure ═══
+            try {
+                await (0, disasterBank_1.captureToDisasterBank)(doc.id, reminder, "max_attempts_exceeded", [reminder.failureReason || "Unknown", `Max attempts (${MAX_ATTEMPTS}) exceeded`]);
+            }
+            catch (dbErr) {
+                console.error(`Failed to capture to Disaster Bank: ${doc.id}`, dbErr);
+            }
             continue;
         }
         // ═══ PROVIDER SELECTION (balanced, lowest-usage first) ═══
@@ -113,7 +141,19 @@ async function processReminders() {
                 failureReason: "quota_exceeded",
                 processedAt: admin.firestore.FieldValue.serverTimestamp(),
             });
-            console.log(`Reminder ${doc.id} failed: all providers exhausted`);
+            // ═══ DISASTER BANK: Capture provider exhaustion ═══
+            try {
+                await (0, disasterBank_1.captureToDisasterBank)(doc.id, reminder, "all_providers_exhausted", [reminder.failureReason || "N/A", "All providers quota exhausted"]);
+            }
+            catch (dbErr) {
+                console.error(`Failed to capture to Disaster Bank: ${doc.id}`, dbErr);
+            }
+            console.error(JSON.stringify({
+                level: 'ERROR',
+                event: 'PROVIDERS_EXHAUSTED',
+                reminderId: doc.id,
+                message: `Reminder ${doc.id} failed: all providers exhausted`
+            }));
             continue;
         }
         // ═══ USER DAILY QUOTA CHECK (200/user) ═══
@@ -133,7 +173,13 @@ async function processReminders() {
                     failedCount: admin.firestore.FieldValue.increment(1),
                     lastFailedAt: admin.firestore.FieldValue.serverTimestamp(),
                 }, { merge: true });
-                console.log(`Reminder ${doc.id} failed: Daily quota exceeded for ${userId}`);
+                console.error(JSON.stringify({
+                    level: 'ERROR',
+                    event: 'QUOTA_EXCEEDED',
+                    reminderId: doc.id,
+                    userId: userId,
+                    message: `Reminder ${doc.id} failed: Daily quota exceeded for ${userId}`
+                }));
                 continue;
             }
         }
@@ -228,28 +274,52 @@ async function processReminders() {
                 subject: emailSubject,
                 customTitle: emailSubject,
             });
-            // ═══ SUCCESS: Mark sent (atomic update) ═══
-            await doc.ref.update({
+            // ═══ SUCCESS: Mark sent (atomic batch) ═══
+            const batch = db.batch();
+            // 1. Update Reminder Status
+            batch.update(doc.ref, {
                 status: "sent",
                 providerUsed: provider.serviceId,
                 attempts: admin.firestore.FieldValue.increment(1),
                 lastAttemptAt: admin.firestore.FieldValue.serverTimestamp(),
                 processedAt: admin.firestore.FieldValue.serverTimestamp(),
             });
-            // Increment provider daily usage
+            // 2. Increment User Daily Quota
+            // Check if usage doc exists is hard in batch without reading first (which we did earlier).
+            // We'll use set with merge: true which is safe.
+            batch.set(usageRef, {
+                count: admin.firestore.FieldValue.increment(1),
+                sentCount: admin.firestore.FieldValue.increment(1),
+                lastSentAt: admin.firestore.FieldValue.serverTimestamp(),
+            }, { merge: true });
+            await batch.commit();
+            // 3. AUDIT LOG (Success)
+            // Fire-and-forget audit log to keep main flow fast, but await it to ensure function doesn't terminate early
+            await (0, auditService_1.logMailAction)({
+                action: 'SEND_SUCCESS',
+                status: 'SENT',
+                reminderId: doc.id,
+                eventId: reminder.eventId,
+                eventTitle: reminder.eventTitle,
+                userId: userId,
+                recipientEmail: reminder.email,
+                recipientName: reminder.participantName || '', // If available in future
+                provider: provider.serviceId,
+                templateId: reminder.templateId,
+                idempotencyKey: reminder.idempotencyKey
+            });
+            // Increment provider daily usage + reset circuit breaker (fire and forget / separate)
             await (0, providerBalancer_1.incrementProviderUsage)(provider.id);
-            // Increment user daily quota + track sent
-            try {
-                await usageRef.set({
-                    count: admin.firestore.FieldValue.increment(1),
-                    sentCount: admin.firestore.FieldValue.increment(1),
-                    lastSentAt: admin.firestore.FieldValue.serverTimestamp(),
-                }, { merge: true });
-            }
-            catch (e) {
-                console.warn('Failed to update quota count:', e);
-            }
-            console.log(`Reminder ${doc.id} sent via ${provider.serviceId}`);
+            await (0, providerBalancer_1.recordProviderSuccess)(provider.id);
+            console.log(JSON.stringify({
+                level: 'INFO',
+                event: 'REMINDER_SENT',
+                reminderId: doc.id,
+                eventId: reminder.eventId,
+                provider: provider.serviceId,
+                attempt: (reminder.attempts || 0) + 1,
+                message: `Reminder ${doc.id} sent via ${provider.serviceId}`
+            }));
             // ═══ ANTI-ABUSE THROTTLE ═══
             await new Promise((r) => setTimeout(r, THROTTLE_MS));
         }
@@ -260,9 +330,10 @@ async function processReminders() {
                 status: "pending", // Revert to pending for retry
                 attempts: admin.firestore.FieldValue.increment(1),
                 lastAttemptAt: admin.firestore.FieldValue.serverTimestamp(),
-                failureReason: failReason,
-                processedAt: null, // Clear so retry logic works
+                failureReason: `[ERR_SEND] ${failReason}`,
+                processedAt: admin.firestore.FieldValue.delete(), // Use delete() not null — avoids false positives
                 claimedAt: null, // Release the claim
+                claimedBy: null, // Release ownership
             });
             // Track failed in user usage
             try {
@@ -272,7 +343,32 @@ async function processReminders() {
                 }, { merge: true });
             }
             catch { /* best effort */ }
-            console.error(`Reminder ${doc.id} failed attempt (${failReason})`);
+            // AUDIT LOG (Failure)
+            await (0, auditService_1.logMailAction)({
+                action: 'SEND_FAILURE',
+                status: 'FAILED',
+                reminderId: doc.id,
+                eventId: reminder.eventId,
+                eventTitle: reminder.eventTitle,
+                userId: userId,
+                recipientEmail: reminder.email,
+                provider: provider?.serviceId || 'unknown',
+                errorMessage: failReason,
+                templateId: reminder.templateId,
+                idempotencyKey: reminder.idempotencyKey
+            });
+            console.error(JSON.stringify({
+                level: 'ERROR',
+                event: 'SEND_FAILED',
+                reminderId: doc.id,
+                reason: failReason,
+                message: `Reminder ${doc.id} failed attempt (${failReason})`
+            }));
+            // Track provider failure for circuit breaker
+            try {
+                await (0, providerBalancer_1.recordProviderFailure)(provider.id);
+            }
+            catch { /* best effort */ }
         }
     }
 }

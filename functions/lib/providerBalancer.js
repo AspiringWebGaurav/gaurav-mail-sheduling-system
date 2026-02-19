@@ -34,9 +34,12 @@ var __importStar = (this && this.__importStar) || (function () {
 })();
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.selectProvider = selectProvider;
+exports.recordProviderFailure = recordProviderFailure;
+exports.recordProviderSuccess = recordProviderSuccess;
 exports.incrementProviderUsage = incrementProviderUsage;
 const admin = __importStar(require("firebase-admin"));
 const DEFAULT_DAILY_QUOTA = 200;
+const CIRCUIT_BREAKER_THRESHOLD = 5; // Auto-disable after N consecutive failures
 function getTodayString() {
     return new Date().toISOString().split("T")[0];
 }
@@ -181,6 +184,39 @@ async function selectProvider() {
     }
     // Fallback: return the one with the most remaining
     return available[0];
+}
+// ═══════════════════════════════════════════════════════════════
+// CIRCUIT BREAKER — Track consecutive failures per provider
+// Auto-disables after CIRCUIT_BREAKER_THRESHOLD consecutive failures.
+// ═══════════════════════════════════════════════════════════════
+async function recordProviderFailure(providerId) {
+    const db = admin.firestore();
+    const ref = db.collection("providerUsage").doc(providerId);
+    await db.runTransaction(async (txn) => {
+        const snap = await txn.get(ref);
+        const currentFailures = snap.exists ? (snap.data()?.consecutiveFailures || 0) : 0;
+        const newFailures = currentFailures + 1;
+        txn.set(ref, {
+            consecutiveFailures: newFailures,
+            lastFailureAt: admin.firestore.FieldValue.serverTimestamp(),
+        }, { merge: true });
+        // Auto-disable provider after threshold
+        if (newFailures >= CIRCUIT_BREAKER_THRESHOLD) {
+            const provRef = db.collection("emailProviders").doc(providerId);
+            txn.update(provRef, {
+                status: "error",
+                updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+            });
+            console.error(`🔴 CIRCUIT BREAKER: Provider ${providerId} disabled after ${newFailures} consecutive failures`);
+        }
+    });
+}
+async function recordProviderSuccess(providerId) {
+    const db = admin.firestore();
+    await db.collection("providerUsage").doc(providerId).set({
+        consecutiveFailures: 0,
+        lastSuccessAt: admin.firestore.FieldValue.serverTimestamp(),
+    }, { merge: true });
 }
 // ═══════════════════════════════════════════════════════════════
 // INCREMENT PROVIDER USAGE

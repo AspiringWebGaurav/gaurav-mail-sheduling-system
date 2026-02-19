@@ -96,6 +96,17 @@ export async function sendEmail(
             },
         };
 
+        // ── LOG REQUEST (REDACTED) ──
+        console.log(JSON.stringify({
+            level: 'INFO',
+            event: 'EMAIL_SEND_INIT',
+            requestId,
+            serviceId: provider.serviceId,
+            templateId: provider.templateId,
+            recipient: params.to_email,
+            subject: emailSubject
+        }));
+
         const req = https.request(options, (res) => {
             let data = "";
             res.on("data", (chunk) => (data += chunk));
@@ -104,10 +115,29 @@ export async function sendEmail(
                 if (res.statusCode === 200) {
                     // Response validation — EmailJS returns 'OK' on success
                     if (data && data.trim() !== 'OK') {
-                        console.warn(`[${requestId}] EmailJS returned 200 but unexpected body: ${data.slice(0, 100)}`);
+                        console.warn(JSON.stringify({
+                            level: 'WARN',
+                            event: 'EMAILJS_UNEXPECTED_BODY',
+                            requestId,
+                            body: data.slice(0, 200)
+                        }));
                     }
+                    console.log(JSON.stringify({
+                        level: 'INFO',
+                        event: 'EMAILJS_SUCCESS',
+                        requestId,
+                        statusCode: res.statusCode,
+                        body: data.trim()
+                    }));
                     resolve();
                 } else {
+                    console.error(JSON.stringify({
+                        level: 'ERROR',
+                        event: 'EMAILJS_FAILURE',
+                        requestId,
+                        statusCode: res.statusCode,
+                        body: data
+                    }));
                     reject(new Error(`[${requestId}] EmailJS API error ${res.statusCode}: ${data}`));
                 }
             });
@@ -115,6 +145,12 @@ export async function sendEmail(
 
         req.on("error", (err) => {
             clearTimeout(timeout);
+            console.error(JSON.stringify({
+                level: 'ERROR',
+                event: 'EMAILJS_NET_ERROR',
+                requestId,
+                error: err.message
+            }));
             reject(new Error(`[${requestId}] EmailJS request failed: ${err.message}`));
         });
 

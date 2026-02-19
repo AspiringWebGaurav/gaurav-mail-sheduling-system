@@ -195,7 +195,7 @@ export async function POST(
                 inviteId: doc.id,
             });
 
-            // ── CRITICAL FIX: Create Scheduled Reminder ──
+            // ── CRITICAL FIX: Create Scheduled Reminder (START) ──
             // Only if event has a valid start time
             if (eventData && eventData.startTime) {
                 const startTime = eventData.startTime.toDate ? eventData.startTime.toDate() : new Date(eventData.startTime);
@@ -226,6 +226,43 @@ export async function POST(
                         senderEmail: data.inviterEmail || '',
                         templateId: inheritedTemplate, // Inherit from owner
                         themeId: inheritedTheme,       // Inherit from owner
+                    });
+                }
+            }
+
+            // ── CRITICAL FIX: Create Scheduled Reminder (END - FOLLOW UP) ──
+            // Only if event has a valid end time
+            if (eventData && eventData.endTime) {
+                const endTime = eventData.endTime.toDate ? eventData.endTime.toDate() : new Date(eventData.endTime);
+                // Schedule exactly at end time
+                const scheduledTimeEnd = endTime;
+
+                if (scheduledTimeEnd > new Date()) {
+                    const reminderIdEnd = `rem_${data.eventId}_${newParticipantId}_auto_end`;
+                    const reminderRefEnd = adminDb.collection('scheduledReminders').doc(reminderIdEnd);
+
+                    t.set(reminderRefEnd, {
+                        eventId: data.eventId,
+                        eventTitle: data.eventTitle || eventData.title || 'Event',
+                        participantId: newParticipantId,
+                        userId: 'system', // System-managed
+                        email: data.inviteeEmail,
+                        scheduledTime: scheduledTimeEnd,
+                        status: 'pending',
+                        attempts: 0,
+                        createdAt: FieldValue.serverTimestamp(),
+                        updatedAt: FieldValue.serverTimestamp(),
+                        createdBy: 'invite_accept',
+                        idempotencyKey: `auto_invite_end_${doc.id}`,
+                        lastAttemptAt: null,
+                        failureReason: '',
+                        providerUsed: '',
+                        processedAt: null,
+                        senderName: data.inviterName || 'GMSS User',
+                        senderEmail: data.inviterEmail || '',
+                        templateId: 'sys_template_prof_followup', // Explicitly use follow-up template
+                        themeId: inheritedTheme,                    // Inherit theme
+                        customMessage: 'Thank you for attending! We hope you found the event valuable.',
                     });
                 }
             }

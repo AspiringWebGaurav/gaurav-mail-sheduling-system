@@ -7,11 +7,13 @@ service cloud.firestore {
       allow read: if true;
     }
 
-    // Token invites — readable by any authenticated user (for live invite status)
-    // Writes happen via Admin SDK on server only
+    // Token invites — readable ONLY by the creator (inviter) for real-time status updates
+    // Guests access via server-side token validation only.
     match /tokenInvites/{inviteId} {
-      allow read: if request.auth != null;
-      allow write: if false;
+      allow read: if request.auth != null && (
+        resource == null || request.auth.uid == resource.data.inviterId
+      );
+      allow write: if false; // Server-only writes
     }
 
     // Invite execution logs — owner-only read, server-only write

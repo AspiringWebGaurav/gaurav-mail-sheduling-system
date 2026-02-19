@@ -258,6 +258,101 @@ interface ReminderDoc {
     providerUsed: string;
 }
 
+function DatabaseMaintenanceCard() {
+    const [cleaning, setCleaning] = useState(false);
+    const [expiredCount, setExpiredCount] = useState<number | null>(null);
+
+    useEffect(() => {
+        fetch('/api/invite/cleanup')
+            .then(res => res.json())
+            .then(data => setExpiredCount(data.count))
+            .catch(() => setExpiredCount(null));
+    }, []);
+
+    const handleCleanup = async () => {
+        if (!confirm('Are you sure you want to clean up expired invites?')) return;
+        setCleaning(true);
+        try {
+            const res = await fetch('/api/invite/cleanup', { method: 'POST' });
+            const data = await res.json();
+            if (data.success) {
+                alert(`Cleanup Complete: ${data.deleted} expired invites removed.`);
+                setExpiredCount(0); // Reset count after success
+            } else {
+                alert('Cleanup failed: ' + data.error);
+            }
+        } catch (e) {
+            alert('Cleanup error: ' + String(e));
+        } finally {
+            setCleaning(false);
+        }
+    };
+
+    return (
+        <motion.div
+            className={`card`}
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            style={{
+                marginBottom: '1rem',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                padding: '1rem',
+                borderLeft: '4px solid #f59e0b' // Amber accent
+            }}
+        >
+            <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                <div style={{
+                    background: 'rgba(245, 158, 11, 0.1)',
+                    padding: '0.6rem',
+                    borderRadius: '8px',
+                    color: '#f59e0b'
+                }}>
+                    <Trash2 size={20} />
+                </div>
+                <div>
+                    <h3 style={{ margin: 0, fontSize: '1rem', fontWeight: 600, color: 'var(--text-primary)' }}>
+                        Database Maintenance
+                    </h3>
+                    <p style={{ margin: 0, fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
+                        {expiredCount !== null
+                            ? `${expiredCount} expired invite${expiredCount === 1 ? '' : 's'} to remove.`
+                            : 'Checking for expired invites...'}
+                    </p>
+                </div>
+            </div>
+
+            <button
+                onClick={handleCleanup}
+                disabled={cleaning || expiredCount === 0}
+                style={{
+                    background: (cleaning || expiredCount === 0) ? 'var(--bg-secondary)' : 'var(--card-bg)',
+                    border: '1px solid var(--border)',
+                    color: (cleaning || expiredCount === 0) ? 'var(--text-tertiary)' : 'var(--text-primary)',
+                    padding: '0.4rem 0.8rem',
+                    borderRadius: '6px',
+                    fontSize: '0.85rem',
+                    fontWeight: 600,
+                    cursor: (cleaning || expiredCount === 0) ? 'not-allowed' : 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.5rem',
+                    transition: 'all 0.2s',
+                    opacity: (cleaning || expiredCount === 0) ? 0.7 : 1
+                }}
+            >
+                {cleaning ? (
+                    <RefreshCw size={14} className="animate-spin" />
+                ) : (
+                    <Trash2 size={14} />
+                )}
+                {cleaning ? 'Cleaning...' : (expiredCount !== null ? `Clean Now (${expiredCount})` : 'Clean Now')}
+            </button>
+        </motion.div>
+    );
+}
+
 export default function SettingsPage() {
     const { user, signOut } = useAuth();
     const { theme, setTheme } = useTheme();
@@ -736,6 +831,9 @@ export default function SettingsPage() {
                     {isEmergencyStop ? 'RESUME SYSTEM' : 'STOP ALL'}
                 </button>
             </motion.div>
+
+            {/* ── DATABASE MAINTENANCE ── */}
+            <DatabaseMaintenanceCard />
 
             {/* ── Status Overview (Collapsible) ── */}
             <motion.div>

@@ -4,6 +4,7 @@ import { adminDb, adminAuth } from '@/lib/server/admin';
 import { FieldValue } from 'firebase-admin/firestore';
 import crypto from 'crypto';
 import { renderInviteEmail } from '@/lib/inviteEmailTemplate';
+import { cleanupExpiredInvites } from '@/lib/server/cleanup';
 
 export const dynamic = 'force-dynamic';
 
@@ -271,5 +272,13 @@ export async function POST(request: NextRequest) {
             { error: 'Internal server error', details: error instanceof Error ? error.message : String(error) },
             { status: 500 }
         );
+    } finally {
+        // Lazy Cleanup: Attempt to delete old expired invites to keep DB clean
+        // We await this to ensure it runs before the Vercel function freezes/terminates
+        try {
+            await cleanupExpiredInvites();
+        } catch (err) {
+            console.error('[Cleanup] Background trigger failed:', err);
+        }
     }
 }

@@ -1,13 +1,12 @@
-import { EmailThemeColors } from '../emailTemplateRenderer';
-
-export function renderBrandingFooter(theme: EmailThemeColors, baseUrl: string = 'https://gaurav-mail-sheduling-system.vercel.app'): string {
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.renderBrandingFooter = renderBrandingFooter;
+function renderBrandingFooter(theme) {
     const year = new Date().getFullYear();
     const { primaryColor, textColor } = theme;
-
     // Ensure we have a valid color for the footer text, defaulting to a muted version of the text color
     const footerTextColor = textColor ? `${textColor}99` : '#666666';
     const linkColor = primaryColor || '#6c5ce7';
-
     return `
     <!-- ───────────────────────────────────────────────────────────── -->
     <!-- BRANDING FOOTER (STATIC & CONTROLLED) -->
@@ -27,19 +26,13 @@ export function renderBrandingFooter(theme: EmailThemeColors, baseUrl: string = 
                     <a href="https://www.gauravworkspace.site" target="_blank" style="color: ${footerTextColor}; text-decoration: none; font-weight: 500; transition: color 0.2s;">Gaurav's Workspace</a>
                 </p>
 
-                <!-- Legal Links -->
-                <p style="margin: 0 0 16px; font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; font-size: 11px; color: ${footerTextColor}; line-height: 1.8;">
-                    <a href="${baseUrl}/terms" target="_blank" style="color: ${footerTextColor}; text-decoration: none; margin: 0 8px;">Terms</a>
-                    <a href="${baseUrl}/privacy" target="_blank" style="color: ${footerTextColor}; text-decoration: none; margin: 0 8px;">Privacy</a>
-                    <a href="${baseUrl}/license" target="_blank" style="color: ${footerTextColor}; text-decoration: none; margin: 0 8px;">License</a>
-                </p>
-
                 <!-- Copyright -->
                 <p style="margin: 0; font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; font-size: 11px; color: ${footerTextColor}; opacity: 0.6;">
-                    &copy; ${year} GMSS. All Rights Reserved.
+                    &copy; ${year} All Rights Reserved.
                 </p>
             </td>
         </tr>
     </table>
     `;
 }
+//# sourceMappingURL=brandingFooter.js.map

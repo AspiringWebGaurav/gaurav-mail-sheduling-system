@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import styles from '../invite.module.css';
+import { Loader2 } from 'lucide-react';
 
 interface Props {
     token: string;
@@ -13,28 +13,36 @@ export function InviteAcceptClient({ token, eventTitle }: Props) {
     const [errorMsg, setErrorMsg] = useState('');
 
     const handleAccept = async () => {
-        if (state === 'loading' || state === 'success') return; // Double-click guard
+        if (state === 'loading' || state === 'success') return;
         setState('loading');
 
         try {
-            const res = await fetch(`/api/invite/${token}/accept`, {
+            const res = await fetch('/api/invite/claim', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ token }),
             });
 
             const data = await res.json();
 
-            if (data.status === 'accepted' || data.status === 'already_accepted') {
-                setState('success');
-            } else if (data.status === 'expired') {
-                setState('error');
-                setErrorMsg('This invitation has expired.');
-            } else if (data.status === 'invalid' || data.status === 'invalid_state') {
-                setState('error');
-                setErrorMsg('This invitation is no longer valid.');
+            if (res.ok) {
+                if (data.status === 'accepted' || data.status === 'already_accepted') {
+                    setState('success');
+                } else {
+                    setState('error');
+                    setErrorMsg('Unexpected status received.');
+                }
             } else {
-                setState('error');
-                setErrorMsg(data.error || 'Something went wrong.');
+                if (res.status === 410 || data.code === 'EXPIRED_TOKEN') {
+                    setState('error');
+                    setErrorMsg('This invitation has expired.');
+                } else if (res.status === 404 || data.code === 'INVALID_TOKEN') {
+                    setState('error');
+                    setErrorMsg('This invitation is no longer valid.');
+                } else {
+                    setState('error');
+                    setErrorMsg(data.error || 'Something went wrong.');
+                }
             }
         } catch {
             setState('error');
@@ -44,11 +52,9 @@ export function InviteAcceptClient({ token, eventTitle }: Props) {
 
     if (state === 'success') {
         return (
-            <div style={{ textAlign: 'center', padding: '8px 0' }}>
-                <div className={`${styles.statusIcon} ${styles.successIcon}`} style={{ fontSize: 40 }}>✓</div>
-                <h3 className={styles.statusTitle} style={{ fontSize: 18 }}>You&apos;re In!</h3>
-                <p className={styles.statusMessage}>
-                    You&apos;ve successfully joined <strong>{eventTitle}</strong>.
+            <div className="animate-fade-in" style={{ padding: '16px', background: 'var(--bg-card)', borderRadius: '12px', border: '1px solid var(--border-success)', marginTop: '24px' }}>
+                <p style={{ color: 'var(--text-primary)', textAlign: 'center', fontSize: '15px' }}>
+                    Successfully joined <strong>{eventTitle}</strong>.
                 </p>
             </div>
         );
@@ -56,29 +62,34 @@ export function InviteAcceptClient({ token, eventTitle }: Props) {
 
     if (state === 'error') {
         return (
-            <div style={{ textAlign: 'center', padding: '8px 0' }}>
-                <div className={`${styles.statusIcon} ${styles.errorIcon}`} style={{ fontSize: 40 }}>✕</div>
-                <p className={styles.statusMessage}>{errorMsg}</p>
+            <div className="animate-fade-in" style={{ padding: '16px', background: 'rgba(255, 71, 87, 0.1)', borderRadius: '12px', border: '1px solid var(--accent-danger)', marginTop: '24px' }}>
+                <p style={{ color: 'var(--accent-danger)', textAlign: 'center', fontSize: '14px' }}>
+                    {errorMsg}
+                </p>
             </div>
         );
     }
 
     return (
-        <div className={styles.acceptForm}>
+        <div style={{ marginTop: '32px' }}>
             <button
-                className={styles.acceptBtn}
                 onClick={handleAccept}
                 disabled={state === 'loading'}
+                className="btn-primary" // Uses global button style
+                style={{ width: '100%', height: '48px', fontSize: '16px' }}
             >
                 {state === 'loading' ? (
                     <>
-                        <span className={styles.spinner} style={{ width: 18, height: 18, borderWidth: 2 }} />
-                        Accepting...
+                        <Loader2 className="animate-spin" size={18} />
+                        Processing...
                     </>
                 ) : (
                     'Accept Invitation'
                 )}
             </button>
+            <p style={{ textAlign: 'center', fontSize: '12px', color: 'var(--text-tertiary)', marginTop: '16px' }}>
+                By accepting, you agree to join this event session.
+            </p>
         </div>
     );
 }
