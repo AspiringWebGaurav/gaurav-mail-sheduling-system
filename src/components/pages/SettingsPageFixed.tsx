@@ -1,5 +1,5 @@
-import { AuthService } from '@/services/authService';
 'use client';
+import { AuthService } from '@/services/authService';
 
 import { useEffect, useState, useMemo } from 'react';
 import { doc, onSnapshot, collection, query, orderBy, limit } from 'firebase/firestore';
