@@ -637,10 +637,7 @@ export default function SettingsPage() {
 
     const menuItems = [
         { href: '/settings/burn-monitor', icon: Activity, label: 'Usage & Burn Monitor', desc: 'Firebase usage intelligence' },
-        { href: '/settings/providers', icon: Server, label: 'Email Providers', desc: 'Manage sending providers' },
-        { href: '/settings/templates', icon: FileText, label: 'Email Templates', desc: 'Manage email templates' },
-        { href: '/settings/themes', icon: Palette, label: 'Email Themes', desc: 'Create & edit themes' },
-        { href: '/settings/categories', icon: Tag, label: 'Categories', desc: 'Manage event categories' },
+        { href: '/settings/providers', icon: Server, label: 'Email Providers', desc: 'Manage sending providers' }
     ];
 
     const quotaPercent = Math.min((usage.count / 200) * 100, 100);
