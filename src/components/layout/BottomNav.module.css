@@ -52,7 +52,9 @@
 }
 
 .tab.active {
-    color: rgba(255, 255, 255, 0.95);
+    color: var(--text-primary);
+    text-shadow: 0 0 16px rgba(255, 255, 255, 0.1);
+    /* Subtle font legibility pop */
 }
 
 .iconWrap {
@@ -64,11 +66,19 @@
     height: 32px;
     border-radius: 50%;
     transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    color: inherit;
+    /* icon properly inherits colors */
 }
 
 .tab.active .iconWrap {
-    background: rgba(255, 255, 255, 0.05);
-    /* Softer highlight */
+    background: var(--accent-primary-glow);
+    /* Premium brand colored background */
+    color: var(--accent-primary-hover);
+    /* Brand active color pop */
+    box-shadow:
+        inset 0 1px 1px rgba(255, 255, 255, 0.15),
+        0 0 12px var(--accent-primary-glow);
+    /* Match active glow outside the pill */
 }
 
 /* Hide legacy neon dot, replace with the soft background highlight */
