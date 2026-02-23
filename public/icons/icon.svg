@@ -1,14 +1,14 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
   <defs>
-    <linearGradient id="grad" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" style="stop-color:#6c5ce7;stop-opacity:1" />
-      <stop offset="100%" style="stop-color:#4834d4;stop-opacity:1" />
+    <linearGradient id="g" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#0f172a;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#1e1e2d;stop-opacity:1" />
     </linearGradient>
-    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
-      <feGaussianBlur in="SourceAlpha" stdDeviation="15"/>
-      <feOffset dx="5" dy="5" result="offsetblur"/>
+    <filter id="dropshadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="8"/>
+      <feOffset dx="0" dy="8" result="offsetblur"/>
       <feComponentTransfer>
-        <feFuncA type="linear" slope="0.3"/>
+        <feFuncA type="linear" slope="0.5"/>
       </feComponentTransfer>
       <feMerge> 
         <feMergeNode/>
@@ -17,14 +17,22 @@
     </filter>
   </defs>
   
-  <!-- Background with Gradient and Shadow -->
-  <rect x="20" y="20" width="472" height="472" rx="120" ry="120" fill="url(#grad)" filter="url(#shadow)" />
+  <!-- Sleek Dark Rounded Rect background -->
+  <rect x="16" y="16" width="480" height="480" rx="100" ry="100" fill="url(#g)" filter="url(#dropshadow)" />
   
-  <!-- Text "GMSS" -->
-  <text x="50%" y="54%" font-family="Arial, sans-serif" font-weight="900" font-size="160" fill="white" text-anchor="middle" dominant-baseline="middle" letter-spacing="4">
-    GMSS
+  <!-- Outer Glow Ring -->
+  <rect x="16" y="16" width="480" height="480" rx="100" ry="100" fill="none" stroke="#6c5ce7" stroke-width="6" opacity="0.3" />
+
+  <!-- The Envelope Body -->
+  <path d="M128 176 L384 176 Q 416 176 416 208 L416 336 Q 416 368 384 368 L128 368 Q 96 368 96 336 L96 208 Q 96 176 128 176 Z" fill="none" stroke="#00d2ff" stroke-width="24" stroke-linejoin="round"/>
+  <!-- Envelope flap folding down -->
+  <path d="M96 208 L256 312 L416 208" fill="none" stroke="#6c5ce7" stroke-width="24" stroke-linecap="round" stroke-linejoin="round"/>
+  
+  <!-- Glowing Action Dot -->
+  <circle cx="416" cy="144" r="32" fill="#ef4444" />
+  
+  <!-- Foreground Text GPMAS -->
+  <text x="50%" y="85%" font-family="Inter, -apple-system, sans-serif" font-weight="900" font-size="64" fill="white" text-anchor="middle" dominant-baseline="middle" letter-spacing="4">
+    GPMAS
   </text>
-  
-  <!-- Subtle Shine/Overlay -->
-  <path d="M20 140 Q 256 60 492 140 L 492 80 Q 256 0 20 80 Z" fill="white" opacity="0.1" />
 </svg>
