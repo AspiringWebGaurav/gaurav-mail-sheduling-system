@@ -1,48 +1,28 @@
 .nav {
     position: fixed;
-    bottom: calc(var(--safe-bottom, 0px) + 20px);
+    bottom: 0;
+    /* Flush to the screen bottom */
     left: 50%;
     transform: translateX(-50%);
-    width: calc(100% - 32px);
-    max-width: calc(var(--max-width, 500px) - 32px);
+    width: 100%;
+    max-width: var(--max-width, 500px);
     z-index: var(--z-nav);
 
-    /* Rich, foggy tint that masks background reading while feeling like frosted glass */
-    background: linear-gradient(to bottom,
-            rgba(26, 26, 36, 0.90),
-            rgba(16, 16, 24, 0.95));
+    /* Solid, fully opaque deep dark tint without glass/blur */
+    background: #111116;
 
-    /* Soft top edge highlight */
+    /* Clean straight top border, NO pill rounding */
     border-top: 1px solid rgba(255, 255, 255, 0.08);
-    border-radius: 40px;
-    /* Restoring pill corners for mobile/desktop column harmony */
 
-    /* Beautiful ambient floating shadow */
-    box-shadow:
-        inset 0 1px 1px rgba(255, 255, 255, 0.05),
-        0 8px 32px rgba(0, 0, 0, 0.5),
-        0 0 1px rgba(0, 0, 0, 1);
-    /* Sharp containment edge */
+    /* Clean subtle containment shadow */
+    box-shadow: 0 -4px 24px rgba(0, 0, 0, 0.4);
 
-    padding: 0 8px;
-    /* Slightly tighter horizontal padding */
+    /* Pad to ensure touch zones don't hit the iOS home bar */
+    padding: 0 0 var(--safe-bottom, 0px) 0;
     transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-/* 🔥 ADD THIS — This is the missing fog layer */
-.nav::before {
-    content: "";
-    position: absolute;
-    inset: 0;
-    border-radius: inherit;
-
-    /* Soft diffusion layer */
-    background: linear-gradient(to bottom,
-            rgba(255, 255, 255, 0.06),
-            rgba(255, 255, 255, 0.02));
-
-    pointer-events: none;
-}
+/* Deleted pseudo "fog" layer as transparency is no longer requested */
 
 .inner {
     display: flex;

@@ -70,9 +70,9 @@ export function InstallPrompt() {
                             </button>
                             <button
                                 className={styles.iconBtn}
-                                onClick={() => handleSnooze(0)}
-                                aria-label="Dismiss"
-                                title="Dismiss"
+                                onClick={() => handleSnooze(15)} // Default dismiss now snoozes for 15 minutes
+                                aria-label="Dismiss for 15 minutes"
+                                title="Dismiss (15m snooze)"
                             >
                                 <X size={20} />
                             </button>
